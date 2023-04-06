@@ -3,11 +3,9 @@ title: Deprecation strategy
 date: 2021-01-21
 area: core
 tags: [deprecation, feature-flags, workflow]
----
+---# Superseded by [Feature flags for major versions](2022-01-20-feature-flags-for-major-versions.md)
 
 # Deprecation strategy
-
-## Superseded by [Feature flags for major versions](2022-01-20-feature-flags-for-major-versions.md)
 
 {% hint style="info" %}
 This document represents an architecture decision record (ADR) and has been mirrored from the ADR section in our Shopware 6 repository.
