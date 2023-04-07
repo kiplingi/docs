@@ -338,29 +338,56 @@ To see action list, we select a Trigger, for example [Example\Event] from the Tr
 
 ### Step 1: Show action label in action list
 
-First, we need to define an action name in `example-plugin.constant.js`. To be consistent with the custom action defined in our PHP code, we also create a constant called `CREATE_TAG` to represent `action.create.tag` which get from the response of `/api/_info/flow-actions.json`.
+First, we need to define some informations like `icon`, `label`, `actionName` of action in `main.js`. To be consistent with the custom action defined in our PHP code, we also create an action name called `CREATE_TAG` to represent `action.create.tag` which get from the response of `/api/_info/flow-actions.json`.
 
 ![Flow Builder action services list](../../../../../.gitbook/assets/flow-builder-action-sevices-list.png)
 
-{% code title="<plugin root>/src/Resources/app/administration/src/constant/swag-example-plugin.constant.js" %}
+{% code title="<plugin root>/src/Resources/app/administration/src/main.js" %}
 
 ```jsx
-export const ACTION = Object.freeze({
-    CREATE_TAG: 'action.create.tag',
+Shopware.Service('flowBuilderService').addIcons({
+    addEntityTag: 'regular-tag',
 });
 
-export const GROUP = 'customer'
+Shopware.Service('flowBuilderService').addLabels({
+    addEntityTag: 'sw-flow.actions.addTag',
+});
 
-export default {
-    ACTION, GROUP
-};
+Shopware.Service('flowBuilderService').addActionNames({
+    ADD_TAG: 'action.create.tag',
+});
+```
+
+{% endcode %}
+And then adding snippets for labels:
+
+{% code title="/src/Resources/app/administration/src/snippet/en-GB.json" %}
+
+```jsx
+{
+    "sw-flow": {
+        "actions": {
+            "addTag": 'Create tag'
+        }
+    }
+}
 ```
 
 {% endcode %}
 
+Do it as the same with `de-DE.json` file for translation of DE language.
+
 **Grouping Actions**
 
-Using the `GROUP` constant, you can define a group that your action will show up in. The default group is `general`.
+If you want your action is on Tag group, you should add this line into the `main.js` file above.
+
+```jsx
+
+Shopware.Service('flowBuilderService').addActionGroupMapping({
+    'action.create.tag': 'tag',
+});
+```
+Otherwise, It will be on the General group as default group.
 
 | Group Name | Group Headline |
 | :--- | :--- |
@@ -369,44 +396,6 @@ Using the `GROUP` constant, you can define a group that your action will show up
 | customer | Customer |
 | order | Order |
 
-Next, we override `sw-flow-sequence-action` component to show `CREATE_TAG` label in action list. For example, we override `getActionTitle` method to add icon, label for `CREATE_TAG` action.
-
-{% code title="<plugin root>/src/Resources/app/administration/src/extension/sw-flow-sequence-action/index.js" %}
-
-```jsx
-import { ACTION, GROUP } from '../../constant/swag-example-plugin.constant';
-
-const { Component } = Shopware;
-
-Component.override('sw-flow-sequence-action', {
-    computed: {
-        // Not necessary if you use an existing group
-        // Push the `groups` method in computed if you are defining a new group
-        groups() {
-             this.actionGroups.unshift(GROUP);
-
-            return this.$super('groups');
-        },
-    },
-
-    methods: {
-        getActionTitle(actionName) {
-            if (actionName === ACTION.CREATE_TAG) {
-                return {
-                    value: actionName,
-                    icon: 'default-badge-help',
-                    label: this.$tc('swag-example-plugin.titleCreateTag'),
-                    group: GROUP,
-                }
-            }
-
-            return this.$super('getActionTitle', actionName);
-        },
-    },
-});
-```
-
-{% endcode %}
 
 Here is the result for the after the **Step 1**.
 
@@ -414,55 +403,37 @@ Here is the result for the after the **Step 1**.
 
 ### Step 2: Add configuration for action
 
-First, we customise `modalName` for the configuration modal, add an `actionDescription` computed property and create the `getCreateTagDescription` method to show action the configuration description.
+First, we customise `modalName` for the configuration modal, add an `getActionDescriptions` method property to show action the configuration description.
 
 {% code title="<plugin root>/src/Resources/app/administration/src/extension/sw-flow-sequence-action/index.js" %}
 
 ```jsx
-import { ACTION, GROUP } from '../../constant/swag-example-plugin.constant';
-
 const { Component } = Shopware;
 
 Component.override('sw-flow-sequence-action', {
     computed: {
         modalName() {
-            if (this.selectedAction === ACTION.CREATE_TAG) {
+            if (this.selectedAction === this.flowBuilderService.getActionName('ADD_TAG')) {
                 return 'swag-example-plugin-modal';
             }
 
             return this.$super('modalName');
         },
-
-        actionDescription() {
-            const actionDescriptionList = this.$super('actionDescription');
-
-            return {
-                ...actionDescriptionList,
-                [ACTION.CREATE_TAG] : (config) => this.getCreateTagDescription(config),
-            };
-        },
     },
 
     methods: {
-        getCreateTagDescription(config) {
-            const tags = config.tags.join(', ');
+        getActionDescriptions(sequence) {
+            if (sequence.actionName === this.flowBuilderService.getActionName('ADD_TAG')) {
+                const tags = config.tags.join(', ');
 
-           return this.$tc('swag-example-plugin.descriptionTags', 0, {
-                tags
-            });
-        },
-
-        getActionTitle(actionName) {
-            if (actionName === ACTION.CREATE_TAG) {
-                return {
-                    value: actionName,
-                    icon: 'default-badge-help',
-                    label: this.$tc('swag-example-plugin.titleCreateTag'),
-                    group: GROUP,
-                }
+                // The description of new action will be show here.
+                return this.$tc('swag-example-plugin.descriptionTags', 0, {
+                    tags
+                });
             }
 
-            return this.$super('getActionTitle', actionName);
+            return this.$super('getActionDescriptions', sequence);
+            
         },
     },
 });
@@ -611,8 +582,10 @@ Component.register('sw-flow-sequence-action', {
                 return;
             }
 
-            if (value === ACTION.CREATE_TAG) {
-                this.selectedAction = ACTION.CREATE_TAG;
+            const actionName = this.flowBuilderService.getActionName('ADD_TAG')
+
+            if (value === actionName) {
+                this.selectedAction = actionName;
                 const config = {
                     tags: 'VIP, New customer'
                 };
